@@ -147,7 +147,7 @@ Replace <add your log directory> with your desired log location and remember to 
 
 ## Mirage Modules With API Keys
 
-Two pre-built Mirage modules require API keys from the organizations supplying the data.  These are the VirusTotal and IBM X-Force modules.  Accounts with both organizations are free and come out of the box with API access which can be obtained here for [VirusTotal](https://www.virustotal.com/gui/join-us) and here for [IBM X-Force](https://www.ibm.com/security/xforce).
+Three pre-built Mirage modules require API keys from the organizations supplying the data.  These are the VirusTotal, IBM X-Force and Shodan modules.  Accounts with each both organization are free and come out of the box with API access which can be obtained here for [VirusTotal](https://www.virustotal.com/gui/join-us), here for [IBM X-Force](https://www.ibm.com/security/xforce) and here for [Shodan](https://account.shodan.io/register).
 
 1. To edit the VirusTotal module, use the following command:  
 
@@ -179,3 +179,18 @@ nano /opt/mirage/modules/XForceReputation.py
 
 ```
 Enter the API key and it's associated password on the lines provided inside the quotes.
+
+5.  To edit the Shodan module, use the following command:
+
+```bash
+nano /opt/mirage/modules/Shodan.py
+```
+
+6.  Where you see the following line:
+
+```bash
+    #Add your Shodan API key inside the quotes on the line below <--------------------------
+    apikey = ''
+```
+
+Add the Shodan API key inside the quotes.
