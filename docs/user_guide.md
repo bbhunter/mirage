@@ -1,53 +1,123 @@
-## Mirage v0.8 - Installation Guide
+## Mirage v0.8 - User Guide
 
-Mirage has been tested on Ubuntu-based Linux distributions.  It is generally recommended using the the latest available version (or at least the latest long-term supported version).  It is also recognized that the code is primarily based on Python 2.7 which is now EOL.  The next major revision of the code will make the jump to Python3.
+----
 
-## Download the Installation Script
+## Simple Examples For Getting Started
 
-1. Download the Mirage installation script:
-```bash
-wget https://raw.githubusercontent.com/slaughterjames/mirage/master/get-mirage.sh -O get-mirage.sh
-```
-2. Grant execution privileges:
-```
-chmod +x get-mirage.sh
-```
-
-## Execute the Script
-
-1. Execute the script:
+The Mirage help screen can be shown by typing the following:
 
 ```bash
-sudo ./get-mirage.sh
+/opt/mirage/mirage.py --help
 ```
 
-The script will do the heavy lifting of installing the requisite .deb files and Python libraries as well as tucking the program files into the correct directory.
+All flags must be preceded by 2 hyphens "--".
 
-## Test for Failed Installation of Python Libraries
-
-Occasionally, pip doesn't install all of the Python modules for one reason or another.  To test everything was installed, simply try to execute Mirage:
+Typical parameters for exploring an external host without touching it directly:
 
 ```bash
-opt/mirage/mirage.py
+/opt/mirage/mirage.py --domain --target example.com --type info --modules all
 ```
+This will execute the tool against example.com and run all modules that have been identified in the conf file as "info".
 
-If there were issues executing the install of the modules, it will turn up here.  To fix, run the following:
+## Command-line Usage Information
+
+Mirage has several command-line flags which are described below.
+
+| Flag | Description |
+|------------|-------------|
+| ThreatCrowdReputation | Required - Tells Mirage what type of target is being investigated |
+| --target OR --targetlist | Required - Investigate a single IP or domain or an entire list of them |
+| --type | Required - Info, Passive, Active or All - Determine what block of modules to use |
+| --modules | Required - Specific or All - What specific modules to use or all of them for a particular type |
+| --sleeptime | The number of seconds paused between targets |
+| --output | Put the output of the tool in a specific directory |
+| --csv | Output a CSV summary of the tool's run |
+| --listmodules | Prints a list of available modules and their descriptions. |
+| --listaddintypes | Prints a list of available addin types as defined in the mirage.conf file.  Defines a group of modules to run. |
+| --updatefeeds | Update the feeds used for the --type info switch. |
+| --debug | Prints verbose logging to the screen to troubleshoot issues with a Mirage installation.|
+| --help | Prints list of flags |
+
+## Default Modules
+
+The modules that come standard with Mirage are as follows:
+
+| Module | Type | Description |
+|------|-------------|---------|
+| ThreatCrowdReputation | Info | Retrieves the reputation data for domains and IPs against the ThreatCrowd database |
+| XForceReputation | Info | Retrieves the reputation data for domains and IPs against the IBM X-Force Exchange database |
+| URLScanioReputation | Info | Retrieves information from URLScan.io's database |
+| VTReputation | Info | Retrieves the reputation data for domains and IPs against the VirusTotal database |
+| FortiguardReputation | Info | Retrieves the categorization data for domains and IPs against Fortiguard's database |
+| Shodan | Info | Retrieves the available data for targets against the Shodan dataset |
+| whois | Info | Queries the WhoIs information for a target |
+| tor_node | Info |  Executes a grep against the current TorDNSEL list of exit nodes |
+| abuse_ch_ransomware_ips | Info | Executes a grep against the abuse.ch ransomware IPs feed |
+| abuse_ch_ransomware_domains | Info | Executes a grep against the abuse.ch ransomware domains feed |
+| abuse_ch_ransomware_urls | Info | Executes a grep against the abuse.ch ransomware URLs feed |
+| abuse_ch_feodo | Info | Executes a grep against the abuse.ch Feodo IP blocklist feed |
+| abuse_ch_urlhaus | Info | Executes a grep against the abuse.ch URLHaus blocklist feed |
+| alexa | Info | Executes a grep against the top 1 million Internet domains on Alexa |
+| dig | Passive | Executes Dig against the target |
+| nslookup | Passive | Executes NSLookup  against the target |
+| host | Passive | Executes host -a against the target |
+| traceroute | Passive | Executes a traceroute against the target |
+| wget | Passive/Active | Executes a WGet operation against the target |
+| screenshot | Passive/Active | Uses the Selenium web driver to take a screenshot of the web site |
+| cert | Active | Pulls the target's certificate data using OpenSSL |
+
+### Feeds
+
+Several modules in the Info type set use feeds from 3rd parties to determine whether a host is malicious, previously seen or otherwise interesting.  The feeds that ship with the install are:
+
+| Feed | Description |
+|------------|-------------|
+| feodo_ipblocklist.txt | Abuse.ch IP list of current Feodo (Dridex and Emotet are derivatives) C2s |
+| RW_DOMBL.txt | Abuse.ch ransomware domains |
+| RW_IPBL.txt | Abuse.ch ransomware IPs |
+| RW_URLBL.txt | Abuse.ch ransomware URLs |
+| top-1m.csv | Alexa top 1 million websites |
+| ToR_Exits.txt | List of ToR Exit Nodes |
+| URLHaus.txt | URLHaus malware domains |
+
+In the event you create a module that incorporates another feed, it can be added to the update script so it gets refreshed with the others.  To do so:
 
 ```bash
-sudo pip install <required python library>
+sudo nano /opt/mirage/updatefeeds.sh
 ```
 
-## Updating the mirage.conf File
-
-The mirage.conf file contains the configuration information used by Mirage to execute.  It needs a few values up front in order to execute.
-
-1. Use your favourite editor to open the mirage.conf file.  We'll use nano in this example:
+Once in look for the update function where the individual feeds are updated and add your own.
 
 ```bash
-nano /opt/mirage/mirage.conf
+update_feeds() {
+  #Pull Feodo IP Blocklist from Abuse.ch and update
+  echoinfo "Updating Feodo IP Blocklist from Abuse.ch"
+  wget -q "https://feodotracker.abuse.ch/blocklist/?download=ipblocklist" --output-document "/tmp/feodo_ipblocklist.txt"
+  chmod a+w "/tmp/feodo_ipblocklist.txt"
+  mv "/tmp/feodo_ipblocklist.txt" "$FEEDS_DIR"
 ```
 
-2. Review default settings:
+### The config file
+
+The Mirage config file contains settings for how the tool behaves and what modules to run.  To access, open the following file:
+
+```bash
+sudo nano /opt/mirage/mirage.conf
+```
+
+The file is structured for JSON and settings are in the format of "setting":"value",.  The quotes are required as is the comma at the end.  The defaults settings are described below: 
+
+| Setting | Description |
+|------------|-------------|
+| "logger" | true or false - Determines whether built in logging is used.  If false, output will still be directed to the console |
+| "logroot" | directory - If the above option is true, this will be the directory where default output is logged.  Remember the trailing "/" at the end of the directory |
+| "modulesdir" | directory - Directory where modules are stored.  By default it's /opt/mirage/modules/.   |
+| "useragent" | Browser user-agent string for any modules that require web-based contact.  "default" by default |
+| "sleeptime" | Time to wait between targets.  7 seconds by default. |
+| "addintypes" | "active","passive","info" are the default module types.  |
+| "addins" | These are the actual modules |
+
+The config file in its entirety is:
 
 ```bash
 {
@@ -56,7 +126,6 @@ nano /opt/mirage/mirage.conf
     "modulesdir": "/opt/mirage/modules/",
     "useragent": "default",
     "sleeptime": "7",
-    "useragent": "default",
     "addintypes": ["active","passive","info"],
     "addins": [
         {
@@ -124,73 +193,107 @@ nano /opt/mirage/mirage.conf
         }
     ]
 }
-
 ```
 
-You'll note the conf file is structured into JSON, so carefully note the placement of brackets, quotes and commas when editing.
+### Running
 
-3. If you don't wish to use logging and rely on the screen output, modify this line:
+There are multiple ways to explore a target.  
+
+To access a single module, run the following:
 
 ```bash
-    "logger": "true",
+/opt/mirage/mirage.py --domain --target google.com --type info --modules whois
 ```
-Change "true" to "false"
 
-4. If you'd to use logging, modify this line:
+To direct output to a specific location:
 
 ```bash
-    "logroot": "<add your log directory>",
+/opt/mirage/mirage.py --domain --target google.com --type info --modules all --output /home/yourname/yourdirectory
 ```
 
-Replace <add your log directory> with your desired log location and remember to include a "/" (without the quotes) as the last character.
-
-
-## Mirage Modules With API Keys
-
-Three pre-built Mirage modules require API keys from the organizations supplying the data.  These are the VirusTotal, IBM X-Force and Shodan modules.  Accounts with each both organization are free and come out of the box with API access which can be obtained here for [VirusTotal](https://www.virustotal.com/gui/join-us), here for [IBM X-Force](https://www.ibm.com/security/xforce) and here for [Shodan](https://account.shodan.io/register).
-
-1. To edit the VirusTotal module, use the following command:  
+To use a list of targets from a file:
 
 ```bash
-nano /opt/mirage/modules/VTReputation.py
+/opt/mirage/mirage.py --domain --targetlist yourlist.txt --type info --modules all --output /home/yourname/yourdirectory
 ```
 
-2. Where you see the following lines:
+To output a summary to a CSV file:
 
 ```bash
-    #Add your VirusTotal API key inside the quotes on the line below <--------------------------
-    apikey = ''
+/opt/mirage/mirage.py --domain --targetlist yourlist.txt --type info --modules all --output /home/yourname/yourdirectory --csv
 ```
 
-Add the VirusTotal API key inside the quotes.
-  
-3. To edit the IBM X-Force module, use the following command:  
+Output to the console will look like the following:
 
 ```bash
-nano /opt/mirage/modules/XForceReputation.py
+$ /opt/mirage/mirage.py --domain --target google.com --type info --modules all 
+[*] Arguments: 
+domain: True
+target: google.com
+type: info
+modules: all
+[*] Type is info
+[*] Logger is active
+[*] Creating log file
+[-] Organize Modules...
+
+[*] Running ThreatCrowd reputation against: google.com
+[-] Malware hashes have been found associated with this target...
+[-] Subdomains have been found associated with this target...
+[*] ThreatCrowd JSON output data had been written to file here: /home/scalp/miragelogs/google.com/TC_JSON_Output.json
+
+[*] Running X-Force reputation against: google.com
+[*] X-Force reputation data had been written to file here: /home/scalp/miragelogs/google.com/XForceReputation.json
+
+[*] Running URLScan.io data against: google.com
+[*] UrlScan JSON output data had been written to file here: /home/scalp/miragelogs/google.com/URLScanio_JSON_Output.json
+
+[*] Running VT reputation against: google.com
+[-] Target has been flagged for malware
+[*] VirusTotal reputation data had been written to file here: /home/scalp/miragelogs/google.com/VTReputation.json
+
+[*] Running Fortiguard reputation against: google.com
+[*] Target has been categorized by Fortiguard as: Search Engines and Portals
+[*] Fortiguard reputation data had been written to file here: /home/scalp/miragelogs/google.com/FortiguardReputation.txt
+[*] Fortiguard HTML output data had been written to file here: /home/scalp/miragelogs/google.com/Fortiguard_Output.html
+
+[*] Running WhoIs against: google.com
+[*] Country Code: Registrant Country: US
+
+[*] WhoIs data had been written to file here: /home/scalp/miragelogs/google.com/WhoIs.txt
+
+[-] Unable to execute ToR Node IP grep - target must be an IP - skipping.
+
+[-] Unable to execute abuse.ch ransomware IP grep - target must be an IP - skipping.
+
+[*] Running abuse.ch ransomware domain grep against: google.com
+[-] Target does not appear in the abuse.ch ransomware domains feed
+[x] abuse.ch ransomware domain data not written to file
+
+[*] Running abuse.ch ransomware URL grep against: google.com
+[-] Target does not appear in the abuse.ch Ransomware URLs feed
+[x] abuse.ch ransomware URL data not written to file
+
+[-] Unable to execute abuse.ch Feodo IP grep - target must be an IP - skipping.
+
+[*] Running abuse.ch URLHaus grep against: google.com
+[-] Target has 1022 entries in the abuse.ch URLHaus feed.
+[*] abuse.ch URLHaus data had been written to file here: /home/scalp/miragelogs/google.com/URLHaus.csv
+
+[*] Running Alexa grep against: google.com
+[-] Target does appear in the Alexa rankings.
+[*] Log file written to: /home/scalp/miragelogs/google.com/google.com.html
+[*] Program Complete
 ```
-4. Where you see the following lines:
+
+When logging is enabled, it will be deposited into a subdirectory that has the target host's domain or IP for name.  There will be an HTML file that will have a summary as well as hyperlinks to each log file.
+
+### Creating additional modules
+
+In the Mirage directory, there is an example template for a new module to be created.  To access:
 
 ```bash
-    #Add your IBM X-Force API Key and Password inside the quotes on the lines below <--------------------------
-    
-    APIKey = ''
-    APIPassword = ''
-
-```
-Enter the API key and it's associated password on the lines provided inside the quotes.
-
-5.  To edit the Shodan module, use the following command:
-
-```bash
-nano /opt/mirage/modules/Shodan.py
+nano /opt/mirage/example_module.py
 ```
 
-6.  Where you see the following line:
-
-```bash
-    #Add your Shodan API key inside the quotes on the line below <--------------------------
-    apikey = ''
-```
-
-Add the Shodan API key inside the quotes.
+This file contains instructions on how to get your module working.  It will need to be deposited into the modules subdirectory and an entry will need to be added to the Mirage config file under the addins setting.
